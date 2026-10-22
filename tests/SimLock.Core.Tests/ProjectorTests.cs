@@ -212,4 +212,13 @@ public static class ProjectorTests
         Assert.True(luego.ShowQr, "en reposo conserva el QR para extender");
         Assert.True(!StateProjector.Project(S("in_progress", T0.AddMinutes(-5), T0.AddMinutes(30)), T0, false).Resting, "jugando no es reposo");
     }
+
+    [Test]
+    public static void Reposo_muestra_QR_de_reserva_si_el_servidor_lo_manda()
+    {
+        var con = StateProjector.Project(S("idle", qr: "https://app.forebooking.com/o/stick/stick-nordelta/jugar"), T0, false);
+        Assert.True(con.Resting && con.ShowQr, "idle con qrUrl muestra QR");
+        var sin = StateProjector.Project(S("idle", qr: null), T0, false);
+        Assert.True(sin.Resting && !sin.ShowQr, "idle sin qrUrl no muestra QR");
+    }
 }

@@ -45,8 +45,8 @@
                     <Border x:Name="RestQrCard" Style="{StaticResource QrCard}" Margin="0,22,0,0" Padding="10" Visibility="Collapsed" Opacity="0.92">
                         <StackPanel>
                             <Image x:Name="RestQr" Width="150" Height="150" RenderOptions.EdgeMode="Aliased" />
-                            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="#FF1A1A1A" TextAlignment="Center" Margin="0,6,0,0"
-                                       Text="¿Seguís jugando? Extendé tu turno" />
+                            <TextBlock x:Name="RestQrCaption" FontSize="14" FontWeight="SemiBold" Foreground="#FF1A1A1A"
+                                       TextAlignment="Center" Margin="0,6,0,0" MaxWidth="170" />
                         </StackPanel>
                     </Border>
                     <TextBlock x:Name="RestMessage" FontSize="18" Foreground="#99F2C94C" TextAlignment="Center" Margin="0,14,0,0"

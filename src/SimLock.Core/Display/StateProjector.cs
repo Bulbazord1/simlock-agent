@@ -109,7 +109,8 @@ public static class StateProjector
     {
         var showQr = m.QrUrl is not null && m.State switch
         {
-            AgentState.Upcoming or AgentState.AwaitingCheckin => true,
+            // En reposo sin reserva el servidor puede mandar el link para reservar desde el celular.
+            AgentState.Idle or AgentState.Upcoming or AgentState.AwaitingCheckin => true,
             AgentState.LastMinutes or AgentState.Ended => m.CanExtend,
             _ => false,
         };

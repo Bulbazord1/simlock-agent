@@ -207,6 +207,7 @@ public partial class OverlayWindow : Window
         Set(RestBay, m.BayName ?? "");
         SetLogo(RestLogo, m.Branding?.LogoUrl);
         SetQr(RestQrCard, RestQr, m.ShowQr ? m.QrUrl : null);
+        Set(RestQrCaption, m.State == AgentState.Ended ? "¿Seguís jugando? Extendé tu turno" : "Reservá este simulador desde tu celular");
         SetVisible(RestMessage, m.MessageText);
         Set(RestMessage, m.MessageText ?? "");
         SetVisible(RestOffline, m.Offline);
