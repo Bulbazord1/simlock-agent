@@ -12,7 +12,11 @@ public partial class PinWindow : Window
     {
         _config = config;
         InitializeComponent();
-        Loaded += (_, _) => PinBox.Focus();
+        Loaded += (_, _) =>
+        {
+            Activate();
+            PinBox.Focus();
+        };
     }
 
     private void OnOk(object sender, RoutedEventArgs e) => TryAccept();

@@ -37,7 +37,7 @@ Sale un único `SimLock.exe` autocontenido (no hace falta instalar .NET en la PC
    - Elegir el **monitor** donde va el overlay y *Guardar*.
 4. Configurar el simulador en **ventana sin bordes** ("borderless windowed"), no en pantalla completa exclusiva. Ver *Limitaciones*.
 
-Para volver a la configuración: **Ctrl + Alt + Shift + S** y el PIN. Desde ahí también se desvincula o se cierra SimLock.
+Para volver a la configuración: **Ctrl + Alt + Shift + S**, o **abrir `SimLock.exe` de nuevo** (doble clic o acceso directo) mientras ya está corriendo. En ambos casos pide el PIN. Desde ahí también se desvincula o se cierra SimLock.
 
 Archivos locales (`%LOCALAPPDATA%\SimLock`): `config.json`, `device.token` (cifrado con DPAPI; copiado a otra PC no sirve), último estado, cola de eventos y `logs\` (7 días).
 

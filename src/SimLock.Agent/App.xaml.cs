@@ -35,10 +35,11 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Un solo proceso por usuario.
+        // Un solo proceso por usuario. Si ya hay uno corriendo, abrirlo de nuevo le pide que muestre la configuración.
         _singleInstance = new Mutex(initiallyOwned: true, @"Local\SimLockAgent", out var createdNew);
         if (!createdNew)
         {
+            SignalRunningInstance();
             Shutdown();
             return;
         }
@@ -58,6 +59,7 @@ public partial class App : Application
 
         BuildRuntime();
         Autostart.Ensure(Log);
+        ListenForSecondLaunch();
 
         _overlay = new OverlayWindow(this);
         _overlay.Initialize();
@@ -147,6 +149,46 @@ public partial class App : Application
         e.Handled = true;
     }
 
+    private const string OpenSetupEventName = @"Local\SimLockAgent-OpenSetup";
+    private EventWaitHandle? _openSetupSignal;
+    private RegisteredWaitHandle? _openSetupWait;
+
+    /// <summary>Instancia que ya corre: cuando alguien vuelve a abrir SimLock.exe, mostrar la configuración (con PIN).</summary>
+    private void ListenForSecondLaunch()
+    {
+        try
+        {
+            _openSetupSignal = new EventWaitHandle(false, EventResetMode.AutoReset, OpenSetupEventName);
+            _openSetupWait = ThreadPool.RegisterWaitForSingleObject(_openSetupSignal, (_, _) =>
+            {
+                Log.Info("SimLock se abrió de nuevo: se muestra la configuración.");
+                Dispatcher.InvokeAsync(RequestSetup);
+            }, null, Timeout.Infinite, executeOnlyOnce: false);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("No se pudo escuchar la segunda apertura de SimLock", ex);
+        }
+    }
+
+    /// <summary>Segunda instancia: avisa a la que ya corre y le cede el primer plano.</summary>
+    private static void SignalRunningInstance()
+    {
+        try
+        {
+            // Quien abre el .exe tiene el foco: se lo cede a la instancia que va a mostrar el PIN.
+            Native.AllowSetForegroundWindow(Native.ASFW_ANY);
+            if (EventWaitHandle.TryOpenExisting(OpenSetupEventName, out var ev))
+            {
+                using (ev) ev.Set();
+            }
+        }
+        catch (Exception)
+        {
+            // Si no se puede avisar, simplemente se cierra como antes.
+        }
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         try
@@ -160,6 +202,8 @@ public partial class App : Application
         {
             Log.Warn("Error al cerrar", ex);
         }
+        _openSetupWait?.Unregister(null);
+        _openSetupSignal?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);
     }
