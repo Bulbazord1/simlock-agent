@@ -46,13 +46,13 @@ Archivos locales (`%LOCALAPPDATA%\SimLock`): `config.json`, `device.token` (cifr
 | Estado | Pantalla | Clics |
 |---|---|---|
 | `disabled` | Nada | — |
-| `idle` | Pantalla de espera con logo, color de marca y nombre de la bay | Bloquea |
+| `idle` | **Reposo:** fondo negro con hora, nombre de la bay y logo tenue; el bloque cambia de lugar cada minuto | Bloquea |
 | `upcoming` | "Hola, Juan — tu turno empieza a las 18:30" + QR de check-in | Bloquea |
 | `awaiting_checkin` | "Hacé check-in para empezar" + QR | Bloquea |
 | `in_progress` | Reloj chico arriba a la derecha | Pasan al juego |
 | `last_minutes` | Tarjeta arriba a la derecha con la cuenta, la hora de fin y QR para extender | Pasan al juego |
 | aviso de minutos | Cartel centrado 8 segundos ("Quedan 10 minutos" + QR), una vez por umbral | Pasan al juego |
-| `ended` | "Tu turno terminó" + QR para extender si se puede | Bloquea |
+| `ended` | "Tu turno terminó" + QR para extender si se puede, durante 3 minutos; después **reposo** (con QR chico mientras se pueda extender) | Bloquea |
 
 Además: banner de `message`, "Pago pendiente — pasá por recepción" y un indicador de "Sin conexión".
 

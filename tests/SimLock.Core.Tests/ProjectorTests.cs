@@ -199,4 +199,17 @@ public static class ProjectorTests
         Assert.Equal(5, r.Announcement?.WarningMinutes);
         Assert.Equal(1, r.Events.Count(e => e.Kind == EventKinds.WarningShown), "un solo warning_shown");
     }
+
+    [Test]
+    public static void Reposo_sin_reserva_y_a_los_3_min_de_terminar()
+    {
+        Assert.True(StateProjector.Project(S("idle"), T0, false).Resting, "idle = reposo");
+        var s = S("ended", T0.AddMinutes(-60), T0);
+        var recien = StateProjector.Project(s, T0.AddMinutes(2), false);
+        Assert.True(!recien.Resting && recien.State == AgentState.Ended, "los primeros minutos muestra 'terminó'");
+        var luego = StateProjector.Project(s, T0.AddMinutes(3), false);
+        Assert.True(luego.Resting && luego.State == AgentState.Ended, "después reposo, sigue siendo ended");
+        Assert.True(luego.ShowQr, "en reposo conserva el QR para extender");
+        Assert.True(!StateProjector.Project(S("in_progress", T0.AddMinutes(-5), T0.AddMinutes(30)), T0, false).Resting, "jugando no es reposo");
+    }
 }

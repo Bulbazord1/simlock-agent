@@ -15,6 +15,9 @@ public static class StateProjector
     /// <summary>El contrato mantiene "ended" 15 minutos después del fin.</summary>
     public static readonly TimeSpan EndedHold = TimeSpan.FromMinutes(15);
 
+    /// <summary>Cuánto se muestra "Tu turno terminó" a pantalla completa antes de pasar a reposo.</summary>
+    public static readonly TimeSpan EndedVisible = TimeSpan.FromMinutes(3);
+
     public static DisplayModel Project(StateResponse s, DateTimeOffset now, bool offline)
     {
         var serverState = AgentStates.Parse(s.State);
@@ -110,6 +113,8 @@ public static class StateProjector
             AgentState.LastMinutes or AgentState.Ended => m.CanExtend,
             _ => false,
         };
-        return m with { ShowQr = showQr };
+        var resting = m.State == AgentState.Idle
+                      || (m.State == AgentState.Ended && m.EndsAt is { } end && m.Now >= end + EndedVisible);
+        return m with { ShowQr = showQr, Resting = resting };
     }
 }

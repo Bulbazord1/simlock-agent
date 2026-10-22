@@ -17,7 +17,7 @@ namespace SimLock.Agent;
 /// </summary>
 public partial class OverlayWindow : Window
 {
-    private enum Mode { Hidden, Full, Pill, Warn, Toast }
+    private enum Mode { Hidden, Full, Rest, Pill, Warn, Toast }
 
     private static readonly TimeSpan ToastDuration = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan TopmostEvery = TimeSpan.FromSeconds(2);
@@ -37,6 +37,9 @@ public partial class OverlayWindow : Window
     private string? _qrUrl;
     private ImageSource? _qrImage;
     private bool _hotkeyRegistered;
+    private readonly Stopwatch _sinceRestMove = Stopwatch.StartNew();
+    private bool _restNeedsMove = true;
+    private static readonly TimeSpan RestMoveEvery = TimeSpan.FromSeconds(60);
 
     internal OverlayWindow(App app)
     {
@@ -116,6 +119,7 @@ public partial class OverlayWindow : Window
             AgentState.InProgress or AgentState.LastMinutes when toastActive => Mode.Toast,
             AgentState.InProgress => Mode.Pill,
             AgentState.LastMinutes => Mode.Warn,
+            _ when m.Resting => Mode.Rest,
             _ => Mode.Full,
         };
 
@@ -123,6 +127,7 @@ public partial class OverlayWindow : Window
         switch (mode)
         {
             case Mode.Full: RenderFull(m, frame.Paired); break;
+            case Mode.Rest: RenderRest(m, mode != _mode); break;
             case Mode.Pill: RenderPill(m); break;
             case Mode.Warn: RenderWarn(m); break;
             case Mode.Toast: RenderToast(m); break;
@@ -196,6 +201,44 @@ public partial class OverlayWindow : Window
             : $"SimLock {_app.Version} · Configuración: Ctrl+Alt+Shift+S");
     }
 
+    private void RenderRest(DisplayModel m, bool entering)
+    {
+        Set(RestClock, VenueTime.FormatHour(m.Now, m.VenueTimezone));
+        Set(RestBay, m.BayName ?? "");
+        SetLogo(RestLogo, m.Branding?.LogoUrl);
+        SetQr(RestQrCard, RestQr, m.ShowQr ? m.QrUrl : null);
+        SetVisible(RestMessage, m.MessageText);
+        Set(RestMessage, m.MessageText ?? "");
+        SetVisible(RestOffline, m.Offline);
+
+        // Cambia de lugar cada minuto para no marcar la pantalla con una imagen fija.
+        if (entering || _restNeedsMove || _sinceRestMove.Elapsed >= RestMoveEvery)
+        {
+            _sinceRestMove.Restart();
+            _restNeedsMove = false;
+            Dispatcher.InvokeAsync(MoveRestCard, DispatcherPriority.Loaded);
+        }
+    }
+
+    private void MoveRestCard()
+    {
+        RestCard.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var w = RestPanel.ActualWidth;
+        var h = RestPanel.ActualHeight;
+        var cw = RestCard.DesiredSize.Width;
+        var ch = RestCard.DesiredSize.Height;
+        if (w <= 0 || h <= 0)
+        {
+            _restNeedsMove = true; // todavía no tiene tamaño: reintentar en el próximo cuadro
+            return;
+        }
+        const double pad = 48;
+        var x = pad + Random.Shared.NextDouble() * Math.Max(0, w - cw - 2 * pad);
+        var y = pad + Random.Shared.NextDouble() * Math.Max(0, h - ch - 2 * pad);
+        Canvas.SetLeft(RestCard, x);
+        Canvas.SetTop(RestCard, y);
+    }
+
     private void RenderPill(DisplayModel m)
     {
         Set(PillTime, m.Remaining is { } r ? VenueTime.FormatCountdown(r) : "—");
@@ -235,6 +278,7 @@ public partial class OverlayWindow : Window
         }
 
         FullPanel.Visibility = mode == Mode.Full ? Visibility.Visible : Visibility.Collapsed;
+        RestPanel.Visibility = mode == Mode.Rest ? Visibility.Visible : Visibility.Collapsed;
         PillPanel.Visibility = mode == Mode.Pill ? Visibility.Visible : Visibility.Collapsed;
         WarnPanel.Visibility = mode == Mode.Warn ? Visibility.Visible : Visibility.Collapsed;
         ToastPanel.Visibility = mode == Mode.Toast ? Visibility.Visible : Visibility.Collapsed;
@@ -245,7 +289,7 @@ public partial class OverlayWindow : Window
         var scale = monitor.Scale;
 
         Native.RECT rect;
-        if (mode == Mode.Full)
+        if (mode is Mode.Full or Mode.Rest)
         {
             rect = b;
         }
@@ -272,7 +316,7 @@ public partial class OverlayWindow : Window
         }
 
         // Pantalla completa bloquea clics; el resto los deja pasar al juego.
-        SetClickThrough(mode != Mode.Full);
+        SetClickThrough(mode is not (Mode.Full or Mode.Rest));
 
         if (!IsVisible) Show();
 

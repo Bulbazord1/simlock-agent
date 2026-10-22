@@ -67,6 +67,11 @@ public sealed record DisplayModel
     public int? ActiveWarningMinutes { get; init; }
     public string? QrUrl { get; init; }
     public bool ShowQr { get; init; }
+    /// <summary>
+    /// Pantalla de reposo: oscura, con poco contenido que se mueve de lugar (evita marcas en la pantalla).
+    /// Se usa sin reserva, y también cuando el turno terminó hace más de unos minutos.
+    /// </summary>
+    public bool Resting { get; init; }
     public bool CanExtend { get; init; }
     public string? MessageText { get; init; }
     public long PendingPaymentCents { get; init; }
