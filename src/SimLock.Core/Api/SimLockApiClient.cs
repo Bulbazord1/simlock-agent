@@ -28,6 +28,10 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
 {
     public const int MaxEventsPerRequest = 50;
 
+    /// <summary>Límite por pedido. La vinculación tolera más: puede tocar un servidor "frío".</summary>
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+    public static readonly TimeSpan PairTimeout = TimeSpan.FromSeconds(45);
+
     private readonly HttpClient _http;
     private readonly bool _ownsClient;
 
@@ -36,7 +40,7 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
         _ownsClient = true;
         _http = handler is null ? new HttpClient() : new HttpClient(handler);
         _http.BaseAddress = baseUrl;
-        _http.Timeout = TimeSpan.FromSeconds(10);
+        _http.Timeout = Timeout.InfiniteTimeSpan; // cada pedido lleva su propio límite
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
@@ -48,7 +52,7 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
         {
             Content = JsonBody(body),
         };
-        using var res = await SendAsync(req, ct).ConfigureAwait(false);
+        using var res = await SendAsync(req, ct, PairTimeout).ConfigureAwait(false);
         var pair = await ReadJsonAsync<PairResponse>(res, ct).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(pair.DeviceToken))
             throw new ApiException("La vinculación no devolvió deviceToken.");
@@ -97,20 +101,29 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
     private static StringContent JsonBody<T>(T value) =>
         new(JsonSerializer.Serialize(value, Json.Options), Encoding.UTF8, "application/json");
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct, TimeSpan? timeout = null)
     {
+        var limit = timeout ?? DefaultTimeout;
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(limit);
+        var started = Stopwatch.GetTimestamp();
         HttpResponseMessage res;
         try
         {
-            res = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            res = await _http.SendAsync(req, HttpCompletionOption.ResponseContentRead, timeoutCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }
+        catch (OperationCanceledException ex)
+        {
+            throw new ApiException($"{req.Method} {req.RequestUri} sin respuesta en {limit.TotalSeconds:0} s", ex);
+        }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
-            throw new ApiException($"Sin conexión con Fore Booking ({ex.GetType().Name}: {ex.Message})", ex);
+            var ms = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            throw new ApiException($"{req.Method} {req.RequestUri} falló a los {ms:0} ms ({ex.GetType().Name}: {ex.Message}{(ex.InnerException is null ? "" : " → " + ex.InnerException.Message)})", ex);
         }
 
         if (res.StatusCode == HttpStatusCode.Unauthorized)

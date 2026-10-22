@@ -96,7 +96,7 @@ public partial class SetupWindow : Window
         catch (ApiException ex)
         {
             _app.Log.Warn("Fallo al vincular", ex);
-            ShowResult(PairResult, "No se pudo conectar con Fore Booking. Revisá internet y probá de nuevo.", error: true);
+            ShowResult(PairResult, $"No se pudo conectar con Fore Booking: {ex.Message}", error: true);
         }
         finally
         {
