@@ -1,0 +1,32 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Pruebas del núcleo
+        run: dotnet run --project tests/SimLock.Core.Tests -c Release
+
+      - name: Publicar SimLock.exe (win-x64, un solo archivo)
+        run: dotnet publish src/SimLock.Agent -c Release -o publish
+
+      - name: Publicar simlock-cli (herramienta de prueba)
+        run: dotnet publish src/SimLock.Cli -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish-cli
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimLock-win-x64
+          path: |
+            publish/SimLock.exe
+            publish-cli/simlock-cli.exe

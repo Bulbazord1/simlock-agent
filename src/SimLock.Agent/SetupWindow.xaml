@@ -1,0 +1,101 @@
+<Window x:Class="SimLock.Agent.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SimLock — Configuración"
+        Width="560" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Topmost="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,18,0,6" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="MinWidth" Value="90" />
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="24">
+        <TextBlock x:Name="StatusText" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock x:Name="StatusDetail" Opacity="0.75" Margin="0,4,0,0" />
+
+        <!-- Vinculación -->
+        <TextBlock Style="{StaticResource Section}" Text="Vincular con una bay" />
+        <TextBlock Opacity="0.75" Text="En el panel: Simuladores → ícono SimLock de la bay → Vincular equipo. El código dura 10 minutos." />
+        <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="Código de 6 dígitos" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <TextBox x:Name="CodeBox" Width="120" MaxLength="6" FontSize="18" />
+                <Button x:Name="PairButton" Content="Vincular" Margin="8,0,0,0" Click="OnPair" />
+            </StackPanel>
+            <TextBlock Grid.Row="1" Text="Nombre de este equipo" VerticalAlignment="Center" Margin="0,8,0,0" />
+            <TextBox x:Name="DeviceNameBox" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" />
+        </Grid>
+        <TextBlock x:Name="PairResult" Margin="0,8,0,0" Visibility="Collapsed" />
+
+        <!-- Pantalla -->
+        <TextBlock Style="{StaticResource Section}" Text="Monitor donde se muestra el overlay" />
+        <ComboBox x:Name="MonitorBox" />
+
+        <!-- PIN -->
+        <TextBlock Style="{StaticResource Section}" Text="PIN de configuración" />
+        <TextBlock x:Name="PinHint" Opacity="0.75" />
+        <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="PIN nuevo (4 a 12 dígitos)" />
+                <PasswordBox x:Name="PinBox" MaxLength="12" Margin="0,4,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Repetir PIN" />
+                <PasswordBox x:Name="PinConfirmBox" MaxLength="12" Margin="0,4,0,0" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Avanzado -->
+        <Expander Header="Avanzado" Margin="0,18,0,0">
+            <StackPanel Margin="0,8,0,0">
+                <TextBlock Text="Servidor de Fore Booking" />
+                <TextBox x:Name="BaseUrlBox" Margin="0,4,0,0" />
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Content="Abrir carpeta de logs" Click="OnOpenLogs" />
+                    <Button x:Name="UnpairButton" Content="Desvincular este equipo" Margin="8,0,0,0" Click="OnUnpair" />
+                    <Button Content="Salir de SimLock" Margin="8,0,0,0" Click="OnExit" />
+                </StackPanel>
+            </StackPanel>
+        </Expander>
+
+        <TextBlock x:Name="SaveResult" Margin="0,14,0,0" Visibility="Collapsed" />
+        <DockPanel Margin="0,18,0,0" LastChildFill="False">
+            <TextBlock x:Name="VersionText" DockPanel.Dock="Left" VerticalAlignment="Center" Opacity="0.6" />
+            <Button DockPanel.Dock="Right" Content="Cerrar" IsCancel="True" Margin="8,0,0,0" Click="OnClose" />
+            <Button DockPanel.Dock="Right" Content="Guardar" IsDefault="True" Click="OnSave" />
+        </DockPanel>
+    </StackPanel>
+</Window>

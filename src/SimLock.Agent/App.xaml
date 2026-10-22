@@ -1,0 +1,12 @@
+<Application x:Class="SimLock.Agent.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <FontFamily x:Key="UiFont">Segoe UI Variable Display, Segoe UI</FontFamily>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Application.Resources>
+</Application>
