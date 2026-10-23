@@ -47,6 +47,11 @@ public sealed class StateResponse
     public bool RequireCheckin { get; init; }
     public BookingInfo? Booking { get; init; }
     public string? QrUrl { get; init; }
+    /// <summary>
+    /// Página del panel que dibuja las pantallas completas (reposo, por empezar, check-in, terminó).
+    /// Si falta o no carga, el agente usa sus pantallas propias.
+    /// </summary>
+    public string? ScreenUrl { get; init; }
     public bool CanExtend { get; init; }
     public MessageInfo? Message { get; init; }
     public BrandingInfo? Branding { get; init; }

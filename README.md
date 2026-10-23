@@ -56,6 +56,20 @@ Archivos locales (`%LOCALAPPDATA%\SimLock`): `config.json`, `device.token` (cifr
 
 Además: banner de `message`, "Pago pendiente — pasá por recepción" y un indicador de "Sin conexión".
 
+## Pantalla web del panel (`screenUrl`)
+
+Extensión del contrato: `/state` puede traer `screenUrl` (https). Si viene, las pantallas completas
+(`idle`, `upcoming`, `awaiting_checkin`, `ended`) las dibuja esa página del panel dentro de un WebView2,
+así el diseño se cambia en Fore Booking sin reinstalar SimLock.
+
+- El reloj chico, los avisos de minutos y la pantalla "sin conexión" los sigue dibujando SimLock.
+- Si `screenUrl` no viene, no carga (reintenta cada minuto), no hay internet, o falta WebView2,
+  se usan las pantallas propias del agente.
+- La página no puede salir de su dominio, ni abrir ventanas, menú contextual, herramientas o zoom.
+- Se recarga cada 6 h (nunca mientras se ve) para tomar versiones nuevas del panel.
+- El agente le envía a la página, con `window.chrome.webview` (evento `message`), el estado que decidió:
+  `{ type: "simlock-state", state, bookingId, startsAt, endsAt, canExtend }`. Es opcional usarlo.
+
 ## Probar el backend sin el overlay
 
 ```bash

@@ -34,13 +34,14 @@ public static class StateProjector
             Branding = s.Branding,
             CanExtend = s.CanExtend,
             QrUrl = string.IsNullOrWhiteSpace(s.QrUrl) ? null : s.QrUrl,
+            ScreenUrl = IsHttpsUrl(s.ScreenUrl) ? s.ScreenUrl : null,
             MessageText = s.Message is { } m && !string.IsNullOrWhiteSpace(m.Text) && (m.ExpiresAt is null || now < m.ExpiresAt)
                 ? m.Text
                 : null,
         };
 
         if (serverState == AgentState.Disabled)
-            return model with { MessageText = null, QrUrl = null };
+            return model with { MessageText = null, QrUrl = null, ScreenUrl = null };
 
         // Estados sin reserva (o estado desconocido): se muestran tal cual.
         if (booking is null || serverState is AgentState.Idle or AgentState.Unknown)
@@ -104,6 +105,11 @@ public static class StateProjector
         }
         return best;
     }
+
+    private static bool IsHttpsUrl(string? url) =>
+        !string.IsNullOrWhiteSpace(url)
+        && Uri.TryCreate(url, UriKind.Absolute, out var u)
+        && (u.Scheme == Uri.UriSchemeHttps || u.IsLoopback);
 
     private static DisplayModel Finish(DisplayModel m)
     {

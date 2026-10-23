@@ -48,6 +48,10 @@ public static class AgentStates
         _ => "unknown",
     };
 
+    /// <summary>Estados de pantalla completa que puede dibujar la página web del panel.</summary>
+    public static bool UsesWebScreen(this AgentState s) =>
+        s is AgentState.Idle or AgentState.Upcoming or AgentState.AwaitingCheckin or AgentState.Ended;
+
     /// <summary>Estados que tapan toda la pantalla (no transparentes a clics).</summary>
     public static bool IsFullScreen(this AgentState s) =>
         s is AgentState.Idle or AgentState.Upcoming or AgentState.AwaitingCheckin or AgentState.Ended;
@@ -67,6 +71,8 @@ public sealed record DisplayModel
     public int? ActiveWarningMinutes { get; init; }
     public string? QrUrl { get; init; }
     public bool ShowQr { get; init; }
+    /// <summary>URL https de la pantalla web del panel, o null.</summary>
+    public string? ScreenUrl { get; init; }
     /// <summary>
     /// Pantalla de reposo: oscura, con poco contenido que se mueve de lugar (evita marcas en la pantalla).
     /// Se usa sin reserva, y también cuando el turno terminó hace más de unos minutos.

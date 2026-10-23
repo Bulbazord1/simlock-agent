@@ -1,0 +1,15 @@
+<Window x:Class="SimLock.Agent.ScreenWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="SimLock — Pantalla"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        Background="Black"
+        Width="800" Height="450">
+    <!-- Ventana aparte y opaca: WebView2 no dibuja dentro de ventanas WPF con transparencia. -->
+    <wv2:WebView2 x:Name="Web" />
+</Window>

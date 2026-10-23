@@ -221,4 +221,19 @@ public static class ProjectorTests
         var sin = StateProjector.Project(S("idle", qr: null), T0, false);
         Assert.True(sin.Resting && !sin.ShowQr, "idle sin qrUrl no muestra QR");
     }
+
+    [Test]
+    public static void ScreenUrl_solo_https_y_nunca_en_disabled()
+    {
+        StateResponse With(string state, string? url) => new()
+        {
+            ServerTime = T0, State = state, ScreenUrl = url,
+        };
+        Assert.Equal("https://panel.forebooking.com/simlock/screen/abc",
+            StateProjector.Project(With("idle", "https://panel.forebooking.com/simlock/screen/abc"), T0, false).ScreenUrl);
+        Assert.Equal<string?>(null, StateProjector.Project(With("idle", "http://evil.example/x"), T0, false).ScreenUrl, "http no");
+        Assert.Equal<string?>(null, StateProjector.Project(With("idle", "javascript:alert(1)"), T0, false).ScreenUrl, "esquema raro no");
+        Assert.Equal<string?>(null, StateProjector.Project(With("disabled", "https://x.example/s"), T0, false).ScreenUrl, "disabled no");
+        Assert.True(AgentState.Ended.UsesWebScreen() && !AgentState.InProgress.UsesWebScreen(), "qué estados usan la web");
+    }
 }

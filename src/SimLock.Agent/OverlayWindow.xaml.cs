@@ -39,6 +39,10 @@ public partial class OverlayWindow : Window
     private bool _hotkeyRegistered;
     private readonly Stopwatch _sinceRestMove = Stopwatch.StartNew();
     private bool _restNeedsMove = true;
+    private ScreenWindow? _screen;
+    private bool _screenVisible;
+    private Native.RECT _screenRect;
+    private readonly Stopwatch _sinceScreenTopmost = Stopwatch.StartNew();
     private static readonly TimeSpan RestMoveEvery = TimeSpan.FromSeconds(60);
 
     internal OverlayWindow(App app)
@@ -64,6 +68,8 @@ public partial class OverlayWindow : Window
             Native.MOD_CONTROL | Native.MOD_ALT | Native.MOD_SHIFT | Native.MOD_NOREPEAT, 0x53 /* S */);
         if (!_hotkeyRegistered) _app.Log.Warn("No se pudo registrar Ctrl+Alt+Shift+S (otro programa lo usa).");
 
+        _screen = new ScreenWindow(_app.Log, System.IO.Path.Combine(_app.Paths.Root, "webview"));
+
         _timer.Start();
         Tick();
     }
@@ -71,6 +77,7 @@ public partial class OverlayWindow : Window
     internal void Shutdown()
     {
         _timer.Stop();
+        _screen?.Close();
         if (_hotkeyRegistered) Native.UnregisterHotKey(_hwnd, HotkeyId);
         _source?.RemoveHook(WndProc);
         Close();
@@ -123,6 +130,9 @@ public partial class OverlayWindow : Window
             _ => Mode.Full,
         };
 
+        // Pantallas completas: si el panel manda screenUrl y la página cargó, la dibuja el panel.
+        if (UpdateWebScreen(frame, m, mode)) mode = Mode.Hidden;
+
         ApplyBranding(m);
         switch (mode)
         {
@@ -133,6 +143,53 @@ public partial class OverlayWindow : Window
             case Mode.Toast: RenderToast(m); break;
         }
         ApplyLayout(mode);
+    }
+
+    /// <summary>Muestra u oculta la pantalla web. Devuelve true si la pantalla web está a la vista.</summary>
+    private bool UpdateWebScreen(AgentFrame frame, DisplayModel m, Mode nativeMode)
+    {
+        if (_screen is null) return false;
+        _screen.Sync(m.ScreenUrl, _screenVisible);
+
+        var useWeb = frame.Paired
+                     && !_app.IsConfiguring
+                     && !m.Offline
+                     && nativeMode is Mode.Full or Mode.Rest
+                     && m.State.UsesWebScreen()
+                     && _screen.IsReady;
+        if (!useWeb)
+        {
+            if (_screenVisible)
+            {
+                _screen.Hide();
+                _screenVisible = false;
+            }
+            return false;
+        }
+
+        var monitor = Monitors.Resolve(_app.Config.MonitorDevice);
+        if (monitor is null) return false;
+        var rect = monitor.Bounds;
+        if (!_screenVisible) _screen.Show();
+        if (!_screenVisible || !SameRect(rect, _screenRect) || _sinceScreenTopmost.Elapsed >= TopmostEvery)
+        {
+            Native.SetWindowPos(_screen.Handle, Native.HWND_TOPMOST, rect.Left, rect.Top, rect.Width, rect.Height,
+                Native.SWP_NOACTIVATE | Native.SWP_SHOWWINDOW);
+            _screenRect = rect;
+            _sinceScreenTopmost.Restart();
+        }
+        _screenVisible = true;
+
+        _screen.PostState(new
+        {
+            type = "simlock-state",
+            state = m.State.ToWire(),
+            bookingId = m.BookingId,
+            startsAt = m.StartsAt,
+            endsAt = m.EndsAt,
+            canExtend = m.CanExtend,
+        });
+        return true;
     }
 
     private Color? _appliedBrand;

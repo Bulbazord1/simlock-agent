@@ -1,0 +1,177 @@
+using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Interop;
+using Microsoft.Web.WebView2.Core;
+using SimLock.Core.Logging;
+
+namespace SimLock.Agent;
+
+/// <summary>
+/// Pantalla completa dibujada por el panel de Fore Booking (screenUrl) dentro de un WebView2.
+/// Solo se muestra cuando la página cargó bien; si no, el overlay usa sus pantallas propias.
+/// La página es de solo lectura: sin menú contextual, sin herramientas, sin zoom y sin salir del dominio.
+/// </summary>
+public partial class ScreenWindow : Window
+{
+    private static readonly TimeSpan RetryEvery = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan ReloadEvery = TimeSpan.FromHours(6);
+
+    private readonly ILog _log;
+    private readonly string _userDataFolder;
+    private IntPtr _hwnd;
+    private Task? _init;
+    private bool _unavailable;
+    private string? _url;
+    private string? _origin;
+    private bool _loaded;
+    private readonly Stopwatch _sinceAttempt = new();
+    private readonly Stopwatch _sinceLoaded = new();
+    private string? _lastPosted;
+
+    internal ScreenWindow(ILog log, string userDataFolder)
+    {
+        _log = log;
+        _userDataFolder = userDataFolder;
+        InitializeComponent();
+    }
+
+    /// <summary>La página cargó bien y se puede mostrar.</summary>
+    internal bool IsReady => !_unavailable && _loaded && _url is not null;
+
+    /// <summary>WebView2 no está instalado o falló al iniciar: no se vuelve a intentar.</summary>
+    internal bool IsUnavailable => _unavailable;
+
+    internal IntPtr Handle
+    {
+        get
+        {
+            if (_hwnd == IntPtr.Zero)
+            {
+                _hwnd = new WindowInteropHelper(this).EnsureHandle();
+                var ex = Native.GetExStyle(_hwnd);
+                ex |= Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOPMOST;
+                ex &= ~Native.WS_EX_APPWINDOW;
+                Native.SetExStyle(_hwnd, ex);
+            }
+            return _hwnd;
+        }
+    }
+
+    /// <summary>
+    /// Se llama en cada cuadro con la URL que manda el servidor (o null). Carga, reintenta y recarga sola.
+    /// </summary>
+    internal void Sync(string? url, bool visible)
+    {
+        if (_unavailable) return;
+        if (url is null)
+        {
+            _url = null;
+            _loaded = false;
+            return;
+        }
+
+        _init ??= InitAsync();
+        if (!_init.IsCompleted || Web.CoreWebView2 is null) return;
+
+        var changed = url != _url;
+        var retry = !_loaded && _sinceAttempt.IsRunning && _sinceAttempt.Elapsed >= RetryEvery;
+        // Recargar de vez en cuando (versiones nuevas del panel), pero nunca mientras se ve.
+        var refresh = _loaded && !visible && _sinceLoaded.Elapsed >= ReloadEvery;
+        if (changed || retry || refresh || !_sinceAttempt.IsRunning)
+            Navigate(url);
+    }
+
+    /// <summary>Le pasa a la página el estado que decidió el agente (opcional para la página).</summary>
+    internal void PostState(object payload)
+    {
+        if (!IsReady || Web.CoreWebView2 is null) return;
+        var json = JsonSerializer.Serialize(payload, SimLock.Core.Api.Json.Options);
+        if (json == _lastPosted) return;
+        _lastPosted = json;
+        try { Web.CoreWebView2.PostWebMessageAsJson(json); }
+        catch (Exception ex) { _log.Warn("No se pudo enviar el estado a la pantalla web", ex); }
+    }
+
+    private void Navigate(string url)
+    {
+        _url = url;
+        _loaded = false;
+        _lastPosted = null;
+        _sinceAttempt.Restart();
+        try
+        {
+            _origin = new Uri(url).GetLeftPart(UriPartial.Authority);
+            Web.CoreWebView2.Navigate(url);
+        }
+        catch (Exception ex)
+        {
+            _log.Warn("No se pudo abrir la pantalla web", ex);
+        }
+    }
+
+    private async Task InitAsync()
+    {
+        try
+        {
+            Directory.CreateDirectory(_userDataFolder);
+            var env = await CoreWebView2Environment.CreateAsync(browserExecutableFolder: null, userDataFolder: _userDataFolder);
+            Web.DefaultBackgroundColor = System.Drawing.Color.Black;
+            await Web.EnsureCoreWebView2Async(env);
+
+            var core = Web.CoreWebView2;
+            var st = core.Settings;
+            st.AreDefaultContextMenusEnabled = false;
+            st.AreDevToolsEnabled = false;
+            st.IsZoomControlEnabled = false;
+            st.AreBrowserAcceleratorKeysEnabled = false;
+            st.IsStatusBarEnabled = false;
+            st.IsPinchZoomEnabled = false;
+            st.IsSwipeNavigationEnabled = false;
+            st.AreDefaultScriptDialogsEnabled = false;
+            st.IsGeneralAutofillEnabled = false;
+            st.IsPasswordAutosaveEnabled = false;
+
+            core.NavigationStarting += (_, e) =>
+            {
+                // Solo el dominio de la pantalla. Cualquier otro link se ignora.
+                var ok = _origin is not null
+                         && Uri.TryCreate(e.Uri, UriKind.Absolute, out var target)
+                         && string.Equals(target.GetLeftPart(UriPartial.Authority), _origin, StringComparison.OrdinalIgnoreCase);
+                if (!ok) e.Cancel = true;
+            };
+            core.NewWindowRequested += (_, e) => e.Handled = true;
+            core.NavigationCompleted += (_, e) =>
+            {
+                _loaded = e.IsSuccess && e.HttpStatusCode is >= 200 and < 300;
+                if (_loaded)
+                {
+                    _sinceLoaded.Restart();
+                    _log.Info("Pantalla web cargada.");
+                }
+                else
+                {
+                    _log.Warn($"La pantalla web no cargó (estado {e.HttpStatusCode}, {e.WebErrorStatus}). Se reintenta en 1 min.");
+                }
+            };
+            core.ProcessFailed += (_, e) =>
+            {
+                _log.Warn($"El proceso de la pantalla web falló ({e.ProcessFailedKind}). Se recarga.");
+                _loaded = false;
+                _sinceAttempt.Restart();
+            };
+            _log.Info($"WebView2 listo (versión {env.BrowserVersionString}).");
+        }
+        catch (WebView2RuntimeNotFoundException)
+        {
+            _unavailable = true;
+            _log.Warn("WebView2 no está instalado: se usan las pantallas propias de SimLock. Instalar 'Microsoft Edge WebView2 Runtime' para la pantalla del panel.");
+        }
+        catch (Exception ex)
+        {
+            _unavailable = true;
+            _log.Error("No se pudo iniciar WebView2: se usan las pantallas propias de SimLock.", ex);
+        }
+    }
+}
