@@ -19,14 +19,14 @@ jobs:
         run: dotnet run --project tests/SimLock.Core.Tests -c Release
 
       - name: Publicar SimLock.exe (win-x64, un solo archivo)
-        run: dotnet publish src/SimLock.Agent -c Release -o publish
+        run: dotnet publish src/SimLock.Agent -c Release -o publish -p:Version=1.0.${{ github.run_number }}
 
       - name: Publicar simlock-cli (herramienta de prueba)
         run: dotnet publish src/SimLock.Cli -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish-cli
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SimLock-win-x64
+          name: SimLock-win-x64-v1.0.${{ github.run_number }}
           path: |
             publish/SimLock.exe
             publish-cli/simlock-cli.exe
