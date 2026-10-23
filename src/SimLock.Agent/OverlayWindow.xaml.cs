@@ -211,7 +211,8 @@ public partial class OverlayWindow : Window
             _screen.SetRoundedRegion(null, null, 0);
         }
 
-        _screen.SetCompact(!full);
+        // Píldora con tamaño informado: recibe toques. Barra vieja de ancho completo: deja pasar todo.
+        _screen.SetCompact(!full, clickThrough: !full && _screen.CompactWidthCss is null);
         if (!_screenVisible || !SameRect(rect, _screenRect) || _sinceScreenTopmost.Elapsed >= TopmostEvery)
         {
             Native.SetWindowPos(_screen.Handle, Native.HWND_TOPMOST, rect.Left, rect.Top, rect.Width, rect.Height,

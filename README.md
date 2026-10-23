@@ -68,7 +68,8 @@ esa página del panel dentro de un WebView2, así el diseño se cambia en Fore B
   `{"type":"simlock-mode","mode":"compact","width":180,"height":56,"radius":14,"anchor":"top-right","margin":16}`
   (px CSS; el agente multiplica por la escala del monitor). Las esquinas se recortan con una región de Windows.
   `anchor`: `top-center` (por defecto), `top-left`, `top-right`, `bottom-center`, `bottom-left`, `bottom-right`.
-  Sin `width` se usa una barra de todo el ancho (páginas viejas). Deja pasar toques y clics y no toma el foco.
+  **La píldora recibe toques** (botón Extender que despliega el QR); fuera de ella no hay ventana, así que todo
+  llega a TrackMan. Nunca toma el foco. Sin `width` se usa una barra de todo el ancho que deja pasar todo (páginas viejas).
   Si en una bay no se ve bien, se desactiva en *Configuración → Avanzado* y se usa el reloj propio de SimLock.
 - Si `screenUrl` no viene, no carga (reintenta cada minuto), no hay internet, o falta WebView2, se usan las
   pantallas propias del agente (con "Sin conexión" cuando corresponde).

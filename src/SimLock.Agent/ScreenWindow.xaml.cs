@@ -140,25 +140,35 @@ public partial class ScreenWindow : Window
             Navigate(url);
     }
 
+    private bool _clickThrough;
+
     /// <summary>
-    /// Compacto: barra arriba de todo que deja pasar toques y clics al simulador, con lo transparente de la
-    /// página mostrando el juego (clave de color). Completo: pantalla entera que recibe toques (check-in).
+    /// compact=false: pantalla entera que recibe toques (check-in).
+    /// compact=true + clickThrough=false: ventana del tamaño de la píldora que recibe toques (botón Extender);
+    ///   fuera de la píldora no hay ventana, así que todo llega a TrackMan.
+    /// compact=true + clickThrough=true: barra de todo el ancho (páginas viejas sin tamaño de píldora): deja pasar
+    ///   todo y usa la clave de color para lo transparente.
+    /// En todos los casos la ventana nunca toma el foco (WS_EX_NOACTIVATE).
     /// </summary>
-    internal void SetCompact(bool compact)
+    internal void SetCompact(bool compact, bool clickThrough = false)
     {
-        if (compact == _compact) return;
+        clickThrough &= compact;
+        if (compact == _compact && clickThrough == _clickThrough) return;
         _compact = compact;
+        _clickThrough = clickThrough;
         var hwnd = Handle;
         var ex = Native.GetExStyle(hwnd);
-        ex = compact
+        ex = clickThrough
             ? ex | Native.WS_EX_LAYERED | Native.WS_EX_TRANSPARENT
             : ex & ~(Native.WS_EX_LAYERED | Native.WS_EX_TRANSPARENT);
         Native.SetExStyle(hwnd, ex);
-        if (compact)
+        if (clickThrough)
             Native.SetLayeredWindowAttributes(hwnd, ColorKey, 255, Native.LWA_COLORKEY | Native.LWA_ALPHA);
         Native.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
             Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | Native.SWP_FRAMECHANGED);
-        _log.Info(compact ? "Pantalla web: modo compacto." : "Pantalla web: modo completo.");
+        _log.Info(!compact ? "Pantalla web: modo completo (táctil)."
+            : clickThrough ? "Pantalla web: barra compacta de ancho completo (sin toques)."
+            : "Pantalla web: píldora compacta (táctil).");
     }
 
     /// <summary>Le pasa a la página el estado que decidió el agente (opcional para la página).</summary>
