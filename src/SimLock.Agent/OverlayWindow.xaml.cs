@@ -70,7 +70,7 @@ public partial class OverlayWindow : Window
 
         _screen = new ScreenWindow(_app.Log, System.IO.Path.Combine(_app.Paths.Root, "webview"));
         try { _screen.Prepare(); }
-        catch (Exception ex) { _app.Log.Error("No se pudo preparar la pantalla web", ex); }
+        catch (Exception prepEx) { _app.Log.Error("No se pudo preparar la pantalla web", prepEx); }
 
         _timer.Start();
         Tick();
