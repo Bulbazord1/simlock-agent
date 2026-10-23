@@ -130,7 +130,10 @@ public partial class ScreenWindow : Window
         _sinceAttempt.Restart();
         try
         {
-            _origin = new Uri(url).GetLeftPart(UriPartial.Authority);
+            var uri = new Uri(url);
+            _origin = uri.GetLeftPart(UriPartial.Authority);
+            // Se loguea solo el dominio y la ruta base, nunca el token.
+            _log.Info($"Abriendo pantalla web en {_origin}{string.Join('/', uri.AbsolutePath.Split('/').Take(3))}/…");
             Web.CoreWebView2.Navigate(url);
         }
         catch (Exception ex)
@@ -138,6 +141,9 @@ public partial class ScreenWindow : Window
             _log.Warn("No se pudo abrir la pantalla web", ex);
         }
     }
+
+    private static string SafeOrigin(string uri) =>
+        Uri.TryCreate(uri, UriKind.Absolute, out var u) ? u.GetLeftPart(UriPartial.Authority) : "URL inválida";
 
     /// <summary>Mensajes de la página. Hoy: {"type":"simlock-mode","mode":"compact","height":72}.</summary>
     private void OnPageMessage(string json)
@@ -186,7 +192,11 @@ public partial class ScreenWindow : Window
                 var ok = _origin is not null
                          && Uri.TryCreate(e.Uri, UriKind.Absolute, out var target)
                          && string.Equals(target.GetLeftPart(UriPartial.Authority), _origin, StringComparison.OrdinalIgnoreCase);
-                if (!ok) e.Cancel = true;
+                if (!ok)
+                {
+                    e.Cancel = true;
+                    _log.Warn($"Pantalla web: se bloqueó la salida a otro dominio ({SafeOrigin(e.Uri)}). Si es una redirección a un login, la URL de la pantalla no es la pública.");
+                }
             };
             core.NewWindowRequested += (_, e) => e.Handled = true;
             core.WebMessageReceived += (_, e) => OnPageMessage(e.WebMessageAsJson);
@@ -200,7 +210,7 @@ public partial class ScreenWindow : Window
                 }
                 else
                 {
-                    _log.Warn($"La pantalla web no cargó (estado {e.HttpStatusCode}, {e.WebErrorStatus}). Se reintenta en 1 min.");
+                    _log.Warn($"La pantalla web no cargó en {_origin} (HTTP {e.HttpStatusCode}, {e.WebErrorStatus}). Se reintenta en 1 min.");
                 }
             };
             core.ProcessFailed += (_, e) =>
