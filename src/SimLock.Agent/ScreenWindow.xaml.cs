@@ -34,8 +34,34 @@ public partial class ScreenWindow : Window
     /// <summary>Color que se vuelve transparente en modo compacto (fondo de la ventana, casi negro).</summary>
     private const uint ColorKey = 0x00010101;
 
-    /// <summary>Alto de la barra compacta en px CSS, informado por la página (simlock-mode). Por defecto 72.</summary>
+    /// <summary>
+    /// Tamaño de la píldora compacta en px CSS, informado por la página (simlock-mode).
+    /// Sin ancho (páginas viejas): barra de todo el ancho del monitor.
+    /// </summary>
     internal int CompactHeightCss { get; private set; } = 72;
+    internal int? CompactWidthCss { get; private set; }
+    internal int CompactRadiusCss { get; private set; } = 12;
+    internal int CompactMarginCss { get; private set; } = 12;
+    /// <summary>top-center | top-left | top-right | bottom-center | bottom-left | bottom-right</summary>
+    internal string CompactAnchor { get; private set; } = "top-center";
+
+    private (int W, int H, int R)? _region;
+
+    /// <summary>Recorta la ventana a un rectángulo redondeado del tamaño dado (px físicos). Null la quita.</summary>
+    internal void SetRoundedRegion(int? width, int? height, int radius)
+    {
+        (int, int, int)? wanted = width is int w && height is int h ? (w, h, radius) : null;
+        if (wanted == _region) return;
+        _region = wanted;
+        if (wanted is null)
+        {
+            Native.SetWindowRgn(Handle, IntPtr.Zero, true);
+            return;
+        }
+        var (rw, rh, rr) = wanted.Value;
+        var rgn = Native.CreateRoundRectRgn(0, 0, rw + 1, rh + 1, rr * 2, rr * 2);
+        if (Native.SetWindowRgn(Handle, rgn, true) == 0) Native.DeleteObject(rgn);
+    }
 
     internal ScreenWindow(ILog log, string userDataFolder)
     {
@@ -179,7 +205,17 @@ public partial class ScreenWindow : Window
             if (root.ValueKind != JsonValueKind.Object) return;
             if (!root.TryGetProperty("type", out var type) || type.GetString() != "simlock-mode") return;
             if (root.TryGetProperty("height", out var h) && h.TryGetDouble(out var height))
-                CompactHeightCss = (int)Math.Clamp(Math.Round(height), 24, 400);
+                CompactHeightCss = (int)Math.Clamp(Math.Ceiling(height), 24, 400);
+            CompactWidthCss = root.TryGetProperty("width", out var w) && w.TryGetDouble(out var width) && width > 0
+                ? (int)Math.Clamp(Math.Ceiling(width), 40, 2000)
+                : null;
+            if (root.TryGetProperty("radius", out var r) && r.TryGetDouble(out var radius))
+                CompactRadiusCss = (int)Math.Clamp(Math.Round(radius), 0, 200);
+            if (root.TryGetProperty("margin", out var m) && m.TryGetDouble(out var margin))
+                CompactMarginCss = (int)Math.Clamp(Math.Round(margin), 0, 200);
+            if (root.TryGetProperty("anchor", out var a) && a.GetString() is { } anchor
+                && anchor is "top-center" or "top-left" or "top-right" or "bottom-center" or "bottom-left" or "bottom-right")
+                CompactAnchor = anchor;
         }
         catch (JsonException)
         {

@@ -177,15 +177,39 @@ public partial class OverlayWindow : Window
         var monitor = Monitors.Resolve(_app.Config.MonitorDevice);
         if (monitor is null) return false;
         var b = monitor.Bounds;
-        var rect = full
-            ? b
-            : new Native.RECT
+        Native.RECT rect;
+        if (full)
+        {
+            rect = b;
+            _screen.SetRoundedRegion(null, null, 0);
+        }
+        else if (_screen.CompactWidthCss is int widthCss)
+        {
+            // La ventana mide lo mismo que la píldora: fuera de ella no hay ventana y el juego se ve entero.
+            var scale = monitor.Scale;
+            var w = Math.Min((int)Math.Ceiling(widthCss * scale), b.Width);
+            var h = Math.Min((int)Math.Ceiling(_screen.CompactHeightCss * scale), b.Height);
+            var margin = (int)Math.Round(_screen.CompactMarginCss * scale);
+            var anchor = _screen.CompactAnchor;
+            var x = anchor.EndsWith("left") ? b.Left + margin
+                  : anchor.EndsWith("right") ? b.Right - w - margin
+                  : b.Left + (b.Width - w) / 2;
+            var y = anchor.StartsWith("bottom") ? b.Bottom - h - margin : b.Top + margin;
+            rect = new Native.RECT { Left = x, Top = y, Right = x + w, Bottom = y + h };
+            _screen.SetRoundedRegion(w, h, (int)Math.Round(_screen.CompactRadiusCss * scale));
+        }
+        else
+        {
+            // Página sin tamaño de píldora: barra de todo el ancho (comportamiento anterior).
+            rect = new Native.RECT
             {
                 Left = b.Left,
                 Top = b.Top,
                 Right = b.Right,
                 Bottom = b.Top + (int)Math.Ceiling(_screen.CompactHeightCss * monitor.Scale),
             };
+            _screen.SetRoundedRegion(null, null, 0);
+        }
 
         _screen.SetCompact(!full);
         if (!_screenVisible || !SameRect(rect, _screenRect) || _sinceScreenTopmost.Elapsed >= TopmostEvery)

@@ -63,10 +63,12 @@ esa página del panel dentro de un WebView2, así el diseño se cambia en Fore B
 
 - **Completa** (`idle`, `upcoming`, `awaiting_checkin`, `ended`): pantalla entera, **recibe toques**
   (botón "Tocá para hacer check-in").
-- **Compacta** (`in_progress`, `last_minutes`): barra arriba de todo, del ancho del monitor y del alto que
-  informa la página (`{"type":"simlock-mode","mode":"compact","height":72}`, por defecto 72 px CSS × escala).
-  Deja pasar toques y clics al simulador y no toma el foco. Lo que la página deja transparente se ve
-  transparente mediante una clave de color (`#010101`), porque WebView2 no admite ventanas WPF con transparencia.
+- **Compacta** (`in_progress`, `last_minutes`): la ventana mide **lo mismo que la píldora** que dibuja la página,
+  así el resto del juego queda libre. La página informa el tamaño con
+  `{"type":"simlock-mode","mode":"compact","width":180,"height":56,"radius":14,"anchor":"top-right","margin":16}`
+  (px CSS; el agente multiplica por la escala del monitor). Las esquinas se recortan con una región de Windows.
+  `anchor`: `top-center` (por defecto), `top-left`, `top-right`, `bottom-center`, `bottom-left`, `bottom-right`.
+  Sin `width` se usa una barra de todo el ancho (páginas viejas). Deja pasar toques y clics y no toma el foco.
   Si en una bay no se ve bien, se desactiva en *Configuración → Avanzado* y se usa el reloj propio de SimLock.
 - Si `screenUrl` no viene, no carga (reintenta cada minuto), no hay internet, o falta WebView2, se usan las
   pantallas propias del agente (con "Sin conexión" cuando corresponde).

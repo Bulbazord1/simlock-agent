@@ -47,6 +47,17 @@ internal static class Native
 
     public const int ASFW_ANY = -1;
     public const uint SWP_NOZORDER = 0x0004;
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int w, int h);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeleteObject(IntPtr hObject);
+
+    /// <summary>Recorta la ventana a esa región. Windows se queda con la región (no hay que liberarla). IntPtr.Zero la quita.</summary>
+    [DllImport("user32.dll")]
+    public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, [MarshalAs(UnmanagedType.Bool)] bool bRedraw);
     public const uint LWA_COLORKEY = 0x1;
     public const uint LWA_ALPHA = 0x2;
 
