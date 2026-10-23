@@ -58,17 +58,22 @@ Además: banner de `message`, "Pago pendiente — pasá por recepción" y un ind
 
 ## Pantalla web del panel (`screenUrl`)
 
-Extensión del contrato: `/state` puede traer `screenUrl` (https). Si viene, las pantallas completas
-(`idle`, `upcoming`, `awaiting_checkin`, `ended`) las dibuja esa página del panel dentro de un WebView2,
-así el diseño se cambia en Fore Booking sin reinstalar SimLock.
+El contrato vigente es `docs/simlock-agent-api.md` del panel. Si `/state` trae `screenUrl`, la pantalla la dibuja
+esa página del panel dentro de un WebView2, así el diseño se cambia en Fore Booking sin reinstalar SimLock.
 
-- El reloj chico, los avisos de minutos y la pantalla "sin conexión" los sigue dibujando SimLock.
-- Si `screenUrl` no viene, no carga (reintenta cada minuto), no hay internet, o falta WebView2,
-  se usan las pantallas propias del agente.
+- **Completa** (`idle`, `upcoming`, `awaiting_checkin`, `ended`): pantalla entera, **recibe toques**
+  (botón "Tocá para hacer check-in").
+- **Compacta** (`in_progress`, `last_minutes`): barra arriba de todo, del ancho del monitor y del alto que
+  informa la página (`{"type":"simlock-mode","mode":"compact","height":72}`, por defecto 72 px CSS × escala).
+  Deja pasar toques y clics al simulador y no toma el foco. Lo que la página deja transparente se ve
+  transparente mediante una clave de color (`#010101`), porque WebView2 no admite ventanas WPF con transparencia.
+  Si en una bay no se ve bien, se desactiva en *Configuración → Avanzado* y se usa el reloj propio de SimLock.
+- Si `screenUrl` no viene, no carga (reintenta cada minuto), no hay internet, o falta WebView2, se usan las
+  pantallas propias del agente (con "Sin conexión" cuando corresponde).
 - La página no puede salir de su dominio, ni abrir ventanas, menú contextual, herramientas o zoom.
-- Se recarga cada 6 h (nunca mientras se ve) para tomar versiones nuevas del panel.
-- El agente le envía a la página, con `window.chrome.webview` (evento `message`), el estado que decidió:
-  `{ type: "simlock-state", state, bookingId, startsAt, endsAt, canExtend }`. Es opcional usarlo.
+  Se recarga cada 6 h (nunca mientras se ve) y cuando cambia `screenUrl` (una vez por día).
+- El agente le manda a la página, por `window.chrome.webview` (evento `message`), el estado que decidió:
+  `{ type: "simlock-state", state, displayMode, bookingId, startsAt, endsAt, canExtend }`.
 
 ## Probar el backend sin el overlay
 

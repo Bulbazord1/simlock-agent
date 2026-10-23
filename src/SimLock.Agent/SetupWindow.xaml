@@ -83,6 +83,8 @@
             <StackPanel Margin="0,8,0,0">
                 <TextBlock Text="Servidor de Fore Booking" />
                 <TextBox x:Name="BaseUrlBox" Margin="0,4,0,0" />
+                <CheckBox x:Name="WebCompactBox" Margin="0,12,0,0"
+                          Content="Mientras se juega, usar la barra del panel (desactivar si no se ve bien en esta bay)" />
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                     <Button Content="Abrir carpeta de logs" Click="OnOpenLogs" />
                     <Button x:Name="UnpairButton" Content="Desvincular este equipo" Margin="8,0,0,0" Click="OnUnpair" />

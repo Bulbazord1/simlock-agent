@@ -24,6 +24,7 @@ public partial class SetupWindow : Window
     {
         DeviceNameBox.Text = Config.DeviceName;
         BaseUrlBox.Text = Config.BaseUrl;
+        WebCompactBox.IsChecked = Config.UseWebCompactBar;
         VersionText.Text = $"SimLock {_app.Version}";
 
         // Ítems armados a mano (sin data binding) para no depender de tipos públicos.
@@ -109,6 +110,7 @@ public partial class SetupWindow : Window
         if (!TryApplyPin(requireIfMissing: false)) return;
 
         if (!string.IsNullOrWhiteSpace(DeviceNameBox.Text)) Config.DeviceName = DeviceNameBox.Text.Trim();
+        Config.UseWebCompactBar = WebCompactBox.IsChecked == true;
         if (MonitorBox.SelectedItem is System.Windows.Controls.ComboBoxItem { Tag: string device }) Config.MonitorDevice = device;
 
         var url = BaseUrlBox.Text.Trim().TrimEnd('/');

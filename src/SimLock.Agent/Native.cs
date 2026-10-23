@@ -46,6 +46,13 @@ internal static class Native
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     public const int ASFW_ANY = -1;
+    public const uint SWP_NOZORDER = 0x0004;
+    public const uint LWA_COLORKEY = 0x1;
+    public const uint LWA_ALPHA = 0x2;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

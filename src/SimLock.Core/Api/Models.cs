@@ -32,6 +32,7 @@ public sealed class VenueRef
     public string Id { get; init; } = "";
     public string Name { get; init; } = "";
     public string? Timezone { get; init; }
+    public string? Locale { get; init; }
 }
 
 public sealed class StateResponse
@@ -52,6 +53,8 @@ public sealed class StateResponse
     /// Si falta o no carga, el agente usa sus pantallas propias.
     /// </summary>
     public string? ScreenUrl { get; init; }
+    /// <summary>"compact" mientras se juega (in_progress / last_minutes), "full" en el resto.</summary>
+    public string? DisplayMode { get; init; }
     public bool CanExtend { get; init; }
     public MessageInfo? Message { get; init; }
     public BrandingInfo? Branding { get; init; }

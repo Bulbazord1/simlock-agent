@@ -29,6 +29,13 @@ public partial class ScreenWindow : Window
     private readonly Stopwatch _sinceAttempt = new();
     private readonly Stopwatch _sinceLoaded = new();
     private string? _lastPosted;
+    private bool _compact;
+
+    /// <summary>Color que se vuelve transparente en modo compacto (fondo de la ventana, casi negro).</summary>
+    private const uint ColorKey = 0x00010101;
+
+    /// <summary>Alto de la barra compacta en px CSS, informado por la página (simlock-mode). Por defecto 72.</summary>
+    internal int CompactHeightCss { get; private set; } = 72;
 
     internal ScreenWindow(ILog log, string userDataFolder)
     {
@@ -83,6 +90,27 @@ public partial class ScreenWindow : Window
             Navigate(url);
     }
 
+    /// <summary>
+    /// Compacto: barra arriba de todo que deja pasar toques y clics al simulador, con lo transparente de la
+    /// página mostrando el juego (clave de color). Completo: pantalla entera que recibe toques (check-in).
+    /// </summary>
+    internal void SetCompact(bool compact)
+    {
+        if (compact == _compact) return;
+        _compact = compact;
+        var hwnd = Handle;
+        var ex = Native.GetExStyle(hwnd);
+        ex = compact
+            ? ex | Native.WS_EX_LAYERED | Native.WS_EX_TRANSPARENT
+            : ex & ~(Native.WS_EX_LAYERED | Native.WS_EX_TRANSPARENT);
+        Native.SetExStyle(hwnd, ex);
+        if (compact)
+            Native.SetLayeredWindowAttributes(hwnd, ColorKey, 255, Native.LWA_COLORKEY | Native.LWA_ALPHA);
+        Native.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+            Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | Native.SWP_FRAMECHANGED);
+        _log.Info(compact ? "Pantalla web: modo compacto." : "Pantalla web: modo completo.");
+    }
+
     /// <summary>Le pasa a la página el estado que decidió el agente (opcional para la página).</summary>
     internal void PostState(object payload)
     {
@@ -111,13 +139,32 @@ public partial class ScreenWindow : Window
         }
     }
 
+    /// <summary>Mensajes de la página. Hoy: {"type":"simlock-mode","mode":"compact","height":72}.</summary>
+    private void OnPageMessage(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return;
+            if (!root.TryGetProperty("type", out var type) || type.GetString() != "simlock-mode") return;
+            if (root.TryGetProperty("height", out var h) && h.TryGetDouble(out var height))
+                CompactHeightCss = (int)Math.Clamp(Math.Round(height), 24, 400);
+        }
+        catch (JsonException)
+        {
+            // Mensaje mal formado: se ignora.
+        }
+    }
+
     private async Task InitAsync()
     {
         try
         {
             Directory.CreateDirectory(_userDataFolder);
             var env = await CoreWebView2Environment.CreateAsync(browserExecutableFolder: null, userDataFolder: _userDataFolder);
-            Web.DefaultBackgroundColor = System.Drawing.Color.Black;
+            // Transparente: lo que la página no pinta muestra el fondo de la ventana (la clave de color).
+            Web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
             await Web.EnsureCoreWebView2Async(env);
 
             var core = Web.CoreWebView2;
@@ -142,6 +189,7 @@ public partial class ScreenWindow : Window
                 if (!ok) e.Cancel = true;
             };
             core.NewWindowRequested += (_, e) => e.Handled = true;
+            core.WebMessageReceived += (_, e) => OnPageMessage(e.WebMessageAsJson);
             core.NavigationCompleted += (_, e) =>
             {
                 _loaded = e.IsSuccess && e.HttpStatusCode is >= 200 and < 300;

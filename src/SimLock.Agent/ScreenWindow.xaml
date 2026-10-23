@@ -8,8 +8,9 @@
         ShowInTaskbar="False"
         ShowActivated="False"
         Topmost="True"
-        Background="Black"
+        Background="#010101"
         Width="800" Height="450">
-    <!-- Ventana aparte y opaca: WebView2 no dibuja dentro de ventanas WPF con transparencia. -->
+    <!-- Ventana aparte: WebView2 no dibuja dentro de ventanas WPF con AllowsTransparency.
+         El fondo #010101 es la "clave de color": en modo compacto ese color se vuelve transparente. -->
     <wv2:WebView2 x:Name="Web" />
 </Window>

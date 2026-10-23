@@ -145,18 +145,23 @@ public partial class OverlayWindow : Window
         ApplyLayout(mode);
     }
 
-    /// <summary>Muestra u oculta la pantalla web. Devuelve true si la pantalla web está a la vista.</summary>
+    /// <summary>
+    /// Muestra u oculta la pantalla web del panel. Devuelve true si está a la vista (entonces el overlay nativo se oculta).
+    /// Completa: reposo / por empezar / check-in / terminó (recibe toques).
+    /// Compacta: barra arriba mientras se juega (deja pasar toques y clics al simulador).
+    /// </summary>
     private bool UpdateWebScreen(AgentFrame frame, DisplayModel m, Mode nativeMode)
     {
         if (_screen is null) return false;
         _screen.Sync(m.ScreenUrl, _screenVisible);
 
+        var full = (nativeMode is Mode.Full or Mode.Rest) && m.State.UsesWebScreen();
+        var compact = _app.Config.UseWebCompactBar && (m.State is AgentState.InProgress or AgentState.LastMinutes);
         var useWeb = frame.Paired
                      && !_app.IsConfiguring
                      && !m.Offline
-                     && nativeMode is Mode.Full or Mode.Rest
-                     && m.State.UsesWebScreen()
-                     && _screen.IsReady;
+                     && _screen.IsReady
+                     && (full || compact);
         if (!useWeb)
         {
             if (_screenVisible)
@@ -169,7 +174,18 @@ public partial class OverlayWindow : Window
 
         var monitor = Monitors.Resolve(_app.Config.MonitorDevice);
         if (monitor is null) return false;
-        var rect = monitor.Bounds;
+        var b = monitor.Bounds;
+        var rect = full
+            ? b
+            : new Native.RECT
+            {
+                Left = b.Left,
+                Top = b.Top,
+                Right = b.Right,
+                Bottom = b.Top + (int)Math.Ceiling(_screen.CompactHeightCss * monitor.Scale),
+            };
+
+        _screen.SetCompact(!full);
         if (!_screenVisible) _screen.Show();
         if (!_screenVisible || !SameRect(rect, _screenRect) || _sinceScreenTopmost.Elapsed >= TopmostEvery)
         {
@@ -184,6 +200,7 @@ public partial class OverlayWindow : Window
         {
             type = "simlock-state",
             state = m.State.ToWire(),
+            displayMode = full ? "full" : "compact",
             bookingId = m.BookingId,
             startsAt = m.StartsAt,
             endsAt = m.EndsAt,

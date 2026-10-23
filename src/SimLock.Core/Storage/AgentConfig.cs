@@ -13,6 +13,12 @@ public sealed class AgentConfig
     /// <summary>Nombre de dispositivo del monitor (ej. \\.\DISPLAY2). Null = monitor principal.</summary>
     public string? MonitorDevice { get; set; }
 
+    /// <summary>
+    /// Mientras se juega, usar la barra que dibuja el panel (modo compacto de la pantalla web).
+    /// Si en una bay no se ve bien, se apaga y se usa el reloj propio de SimLock.
+    /// </summary>
+    public bool UseWebCompactBar { get; set; } = true;
+
     // Datos informativos de la vinculación (para la pantalla de configuración).
     public string? BayId { get; set; }
     public string? BayName { get; set; }
