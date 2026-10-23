@@ -69,6 +69,8 @@ public partial class OverlayWindow : Window
         if (!_hotkeyRegistered) _app.Log.Warn("No se pudo registrar Ctrl+Alt+Shift+S (otro programa lo usa).");
 
         _screen = new ScreenWindow(_app.Log, System.IO.Path.Combine(_app.Paths.Root, "webview"));
+        try { _screen.Prepare(); }
+        catch (Exception ex) { _app.Log.Error("No se pudo preparar la pantalla web", ex); }
 
         _timer.Start();
         Tick();
@@ -166,7 +168,7 @@ public partial class OverlayWindow : Window
         {
             if (_screenVisible)
             {
-                _screen.Hide();
+                _screen.Park();
                 _screenVisible = false;
             }
             return false;
@@ -186,7 +188,6 @@ public partial class OverlayWindow : Window
             };
 
         _screen.SetCompact(!full);
-        if (!_screenVisible) _screen.Show();
         if (!_screenVisible || !SameRect(rect, _screenRect) || _sinceScreenTopmost.Elapsed >= TopmostEvery)
         {
             Native.SetWindowPos(_screen.Handle, Native.HWND_TOPMOST, rect.Left, rect.Top, rect.Width, rect.Height,

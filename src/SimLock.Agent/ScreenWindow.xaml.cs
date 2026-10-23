@@ -66,6 +66,30 @@ public partial class ScreenWindow : Window
         }
     }
 
+    /// <summary>Coordenada fuera de cualquier monitor donde la ventana espera cuando no se usa.</summary>
+    private const int ParkedAt = -32000;
+
+    /// <summary>
+    /// WebView2 recién se inicia cuando su ventana se mostró al menos una vez. Por eso la ventana se muestra
+    /// desde el arranque, pero estacionada fuera de la pantalla, y se trae al monitor solo cuando hace falta.
+    /// </summary>
+    internal void Prepare()
+    {
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = ParkedAt;
+        Top = ParkedAt;
+        Width = 1280;
+        Height = 720;
+        _ = Handle; // aplica los estilos (sin barra de tareas, sin activar) antes de mostrarla
+        Show();
+        Park();
+    }
+
+    /// <summary>Saca la ventana de la vista sin ocultarla (así WebView2 sigue vivo y cargando).</summary>
+    internal void Park() =>
+        Native.SetWindowPos(Handle, IntPtr.Zero, ParkedAt, ParkedAt, 1280, 720,
+            Native.SWP_NOZORDER | Native.SWP_NOACTIVATE);
+
     /// <summary>
     /// Se llama en cada cuadro con la URL que manda el servidor (o null). Carga, reintenta y recarga sola.
     /// </summary>
