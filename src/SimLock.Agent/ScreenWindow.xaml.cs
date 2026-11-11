@@ -238,7 +238,13 @@ public partial class ScreenWindow : Window
         try
         {
             Directory.CreateDirectory(_userDataFolder);
-            var env = await CoreWebView2Environment.CreateAsync(browserExecutableFolder: null, userDataFolder: _userDataFolder);
+            // Carpeta de datos persistente (%LOCALAPPDATA%\SimLock\webview): la caché de videos sobrevive a
+            // reinicios y actualizaciones, así cada video se baja una sola vez. Nunca se borra.
+            var options = new CoreWebView2EnvironmentOptions
+            {
+                AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required",
+            };
+            var env = await CoreWebView2Environment.CreateAsync(browserExecutableFolder: null, userDataFolder: _userDataFolder, options: options);
             // Transparente: lo que la página no pinta muestra el fondo de la ventana (la clave de color).
             Web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
             await Web.EnsureCoreWebView2Async(env);

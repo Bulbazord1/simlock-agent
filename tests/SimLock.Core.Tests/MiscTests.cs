@@ -145,6 +145,26 @@ public static class MiscTests
     }
 
     [Test]
+    public static async Task Cliente_http_usa_ETag_y_304()
+    {
+        using var server = new FakeServer { StateEtag = "\"abc\"" };
+        using var client = new SimLockApiClient(new Uri(server.BaseUrl), "SimLock/test");
+        var token = new string('f', 64);
+
+        var first = await client.GetStateAsync(token, default);
+        Assert.Equal<string?>(null, server.LastIfNoneMatch, "la primera no manda If-None-Match");
+        Assert.Equal(new DateTimeOffset(2026, 10, 22, 21, 31, 0, TimeSpan.Zero), first.State.ServerTime, "usa X-Server-Time");
+
+        var second = await client.GetStateAsync(token, default);
+        Assert.Equal("\"abc\"", server.LastIfNoneMatch, "manda el ETag");
+        Assert.Equal("in_progress", second.State.State, "304 conserva el estado anterior");
+        Assert.True(second.State.Booking?.Id == "bk", "conserva la reserva");
+
+        await Assert.Throws<UnauthorizedException>(() => client.GetStateAsync("otro", default));
+        Assert.Equal<string?>(null, server.LastIfNoneMatch, "con otro token no reutiliza el ETag");
+    }
+
+    [Test]
     public static async Task Cliente_http_sin_servidor_es_sin_conexion()
     {
         using var client = new SimLockApiClient(new Uri("http://127.0.0.1:9/"), "SimLock/test");
@@ -162,6 +182,8 @@ public sealed class FakeServer : IDisposable
     public Dictionary<string, string?> LastAuth { get; } = [];
     public Dictionary<string, string> LastMethod { get; } = [];
     public HttpStatusCode? FailWith;
+    public string? StateEtag;
+    public string? LastIfNoneMatch;
 
     public FakeServer()
     {
@@ -182,6 +204,18 @@ public sealed class FakeServer : IDisposable
             using (var r = new StreamReader(ctx.Request.InputStream)) LastBody[path] = await r.ReadToEndAsync();
             LastAuth[path] = ctx.Request.Headers["Authorization"];
             LastMethod[path] = ctx.Request.HttpMethod;
+            LastIfNoneMatch = ctx.Request.Headers["If-None-Match"];
+            if (StateEtag is not null && path == "/api/public/simlock/state")
+            {
+                ctx.Response.Headers["ETag"] = StateEtag;
+                ctx.Response.Headers["X-Server-Time"] = "2026-10-22T21:31:00.000Z";
+                if (LastIfNoneMatch == StateEtag && ctx.Request.Headers["Authorization"] == "Bearer " + new string('f', 64))
+                {
+                    ctx.Response.StatusCode = 304;
+                    ctx.Response.Close();
+                    continue;
+                }
+            }
 
             var (status, body) = FailWith is { } f ? ((int)f, "{\"error\":\"boom\"}") : Route(path, ctx.Request.Headers["Authorization"]);
             ctx.Response.StatusCode = status;

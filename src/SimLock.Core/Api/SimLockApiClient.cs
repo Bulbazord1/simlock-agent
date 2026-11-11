@@ -59,13 +59,48 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
         return pair;
     }
 
+    // Última respuesta completa de /state, para responder a un 304 (ETag). Atada al token que la pidió.
+    private readonly object _cacheGate = new();
+    private string? _etag;
+    private string? _etagToken;
+    private StateResponse? _cachedState;
+
     public async Task<StateFetch> GetStateAsync(string deviceToken, CancellationToken ct)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, "api/public/simlock/state");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", deviceToken);
+        StateResponse? cached;
+        lock (_cacheGate)
+        {
+            cached = _etagToken == deviceToken ? _cachedState : null;
+            if (cached is not null && _etag is not null)
+                req.Headers.TryAddWithoutValidation("If-None-Match", _etag);
+        }
+
         var sw = Stopwatch.StartNew();
-        using var res = await SendAsync(req, ct).ConfigureAwait(false);
-        var state = await ReadJsonAsync<StateResponse>(res, ct).ConfigureAwait(false);
+        using var res = await SendAsync(req, ct, acceptNotModified: cached is not null).ConfigureAwait(false);
+        var headerTime = ReadServerTimeHeader(res);
+
+        StateResponse state;
+        if (res.StatusCode == HttpStatusCode.NotModified)
+        {
+            // Nada cambió: mismo estado, hora nueva (viene en X-Server-Time aun en 304).
+            if (cached is null || headerTime is null)
+                throw new ApiException("304 sin estado previo o sin X-Server-Time.");
+            state = cached with { ServerTime = headerTime.Value };
+        }
+        else
+        {
+            state = await ReadJsonAsync<StateResponse>(res, ct).ConfigureAwait(false);
+            if (headerTime is not null) state = state with { ServerTime = headerTime.Value };
+            var etag = res.Headers.ETag?.ToString();
+            lock (_cacheGate)
+            {
+                _etag = etag;
+                _etagToken = etag is null ? null : deviceToken;
+                _cachedState = etag is null ? null : state;
+            }
+        }
         // Se toma el instante después de leer el cuerpo: serverTime se generó antes de enviarlo.
         var received = Stopwatch.GetTimestamp();
         sw.Stop();
@@ -73,6 +108,13 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
             throw new ApiException("La respuesta de /state no trae serverTime.");
         return new StateFetch(state, received, sw.Elapsed);
     }
+
+    private static DateTimeOffset? ReadServerTimeHeader(HttpResponseMessage res) =>
+        res.Headers.TryGetValues("X-Server-Time", out var values)
+        && DateTimeOffset.TryParse(values.FirstOrDefault(), System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal, out var t)
+            ? t
+            : null;
 
     public async Task HeartbeatAsync(string deviceToken, string appVersion, CancellationToken ct)
     {
@@ -101,7 +143,7 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
     private static StringContent JsonBody<T>(T value) =>
         new(JsonSerializer.Serialize(value, Json.Options), Encoding.UTF8, "application/json");
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct, TimeSpan? timeout = null)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct, TimeSpan? timeout = null, bool acceptNotModified = false)
     {
         var limit = timeout ?? DefaultTimeout;
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -132,6 +174,7 @@ public sealed class SimLockApiClient : ISimLockApi, IDisposable
             res.Dispose();
             throw new UnauthorizedException(string.IsNullOrEmpty(detail) ? "401" : detail);
         }
+        if (acceptNotModified && res.StatusCode == HttpStatusCode.NotModified) return res;
         if (!res.IsSuccessStatusCode)
         {
             var detail = await SafeReadAsync(res, ct).ConfigureAwait(false);

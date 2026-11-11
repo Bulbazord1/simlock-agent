@@ -35,7 +35,7 @@ public sealed class VenueRef
     public string? Locale { get; init; }
 }
 
-public sealed class StateResponse
+public sealed record StateResponse
 {
     public DateTimeOffset ServerTime { get; init; }
     public int PollSeconds { get; init; }

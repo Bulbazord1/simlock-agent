@@ -56,6 +56,14 @@ Archivos locales (`%LOCALAPPDATA%\SimLock`): `config.json`, `device.token` (cifr
 
 Además: banner de `message`, "Pago pendiente — pasá por recepción" y un indicador de "Sin conexión".
 
+## Ahorro de consultas
+
+- Se consulta `/state` cada `pollSeconds` que manda el panel (5 s a 10 min; hoy 15–300 s según el estado).
+- Se envía `If-None-Match` con el `ETag` de la última respuesta; un `304` conserva el estado anterior y solo
+  actualiza la hora con `X-Server-Time`.
+- La carpeta de WebView2 (`%LOCALAPPDATA%\SimLock\webview`) es persistente: los videos de la cola de reposo se
+  bajan una sola vez. Autoplay de medios habilitado.
+
 ## Pantalla web del panel (`screenUrl`)
 
 El contrato vigente es `docs/simlock-agent-api.md` del panel. Si `/state` trae `screenUrl`, la pantalla la dibuja

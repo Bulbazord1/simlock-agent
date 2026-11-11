@@ -88,7 +88,7 @@ public sealed class AgentRuntime : IDisposable
             lock (_gate)
             {
                 var s = _state?.PollSeconds ?? 0;
-                return s <= 0 ? DefaultPoll : TimeSpan.FromSeconds(Math.Clamp(s, 5, 120));
+                return s <= 0 ? DefaultPoll : TimeSpan.FromSeconds(Math.Clamp(s, 5, 600));
             }
         }
     }
